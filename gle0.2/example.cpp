@@ -14,9 +14,9 @@ bool operator==(const vector<double> lhs, const vector<double> rhs)
 
 bool check(vector<double> rule, vector<double> example)
 {
-	for (int i = 0; i < example.size(); i++)
+	for (int i = 0; i < rule.size(); i += 2)
 	{
-		if (!((rule[2 * i] <= example[i]) && (example[i] < rule[2 * i + 1])))
+		if (!((rule[i] <= example[i/2]) && (example[i/2] < rule[i + 1])))
 			return false;
 	}
 	return true;
@@ -24,16 +24,13 @@ bool check(vector<double> rule, vector<double> example)
 
 bool error(vector<double> rule, vector<double> example)
 {
-	for (int i = 0; i < example.size() - 2; i++)
+	for (int i = 0; i < rule.size() - 2; i+= 2)
 	{
-		if (!((rule[2 * i] <= example[i]) && (example[i] < rule[2 * (i + 1)])))
+		if (!((rule[i] <= example[i/2]) && (example[i/2] < rule[i + 1])))
 			return false;
 	}
-	for (int i = example.size() - 2; i < example.size(); i++)
-	{
-		if (!((rule[2 * i] <= example[i]) && (example[i] < rule[2 * (i + 1)])))
+	if (!((rule[rule.size() - 2] <= example[example.size()-1]) && (example[example.size()-1] < rule[rule.size()-1])))
 			return true;
-	}	
 	return false;
 }
 
@@ -84,29 +81,22 @@ const vector<double> example::operator[](int index) const
 
 example::example(string filename1, string filename2)
 {
-	vector<double> prototype;
-	prototype.clear();
 	ifstream fin;
 	fin.open(filename1);
-	int j = 0;
 	while (!fin.eof())
 	{
 		string line;
 		getline(fin, line);
 		stringstream input(line);
-		int i = 0;
+		vector<double> values;
 		while (!input.eof())
 		{
 			double val;
 			input>>val;
-			if (j == 0)
-			{
-				_examples.push_back(prototype);
-			}
-			_examples[i].push_back(val);
-			i++;			
+			values.push_back(val);
 		}
-		j++;
+		_examples.push_back(values);
+		values.clear();
 	}
 	fin.close();
 	fin.open(filename2);

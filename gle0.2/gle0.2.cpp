@@ -33,16 +33,20 @@ int correct(vector<double> rule, example examples)
 double coverage(vector<double> rule, example examples)
 {
 	double cov = 1;
-	for (int i = 0; i < examples[0].size(); i++)
+	for (int i = 0; i < rule.size(); i += 2)
 	{
-		cov *= (rule[2 * i + 1] - rule[2 * i]) / (examples.get_up(i) - examples.get_low(i));
+		cov *= (rule[i + 1] - rule[i]) / (examples.get_up(i/2) - examples.get_low(i/2));
 	}
 	return cov;
 }
 
 double fitness(vector<double> rule, example examples)
 {
-	return (2 * (examples.size() - class_error(rule, examples) + correct(rule, examples) + coverage(rule, examples)));
+	int _examples = examples.size();
+	int error_class = class_error(rule, examples);
+	int correctness = correct(rule,examples);
+	double cov = coverage(rule, examples);
+	return (2 * (_examples - error_class) + correctness + cov);//(2 * (examples.size() - class_error(rule, examples)) + correct(rule, examples) + coverage(rule, examples));
 }
 
 vector<double> fitness(vector<vector<double>> population, example examples)
@@ -55,7 +59,7 @@ vector<double> fitness(vector<vector<double>> population, example examples)
 	return fit;
 }
 
-void init(vector<vector<double>> population, example examples, int n)
+void init(vector<vector<double>> &population, example examples, int n)
 {
 	int choice = rand() % examples.size();
 	population.resize(n);
@@ -99,7 +103,7 @@ int select(vector<double> population)
 	distribution.push_back(0);
 	for (int i = 0; i < probabilities.size(); i++)
 	{
-		distribution[i+1] = distribution[i] + probabilities[i];
+		distribution.push_back(distribution[i] + probabilities[i]);
 	}
 	double choice = (double)rand()/RAND_MAX;
 	for (int i = 0; i < distribution.size(); i++)
@@ -134,10 +138,10 @@ vector<double> crossover(vector<double> parent1, vector<double> parent2)
 	vector<double> child;
 	for (int i = 0; i < parent1.size(); i += 2)
 	{
-		double left1 = min(parent1[2*i], parent2[2*i]);
-		double left2 = max(parent1[2*i], parent2[2*i]);
-		double right1 = min(parent1[2*i + 1], parent2[2*i + 1]);
-		double right2 = max(parent1[2*i + 1], parent2[2*i + 1]);
+		double left1 = min(parent1[i], parent2[i]);
+		double left2 = max(parent1[i], parent2[i]);
+		double right1 = min(parent1[i + 1], parent2[i + 1]);
+		double right2 = max(parent1[i + 1], parent2[i + 1]);
 		double l = (double)rand()/RAND_MAX * left1 + (left2 - left1);
 		double r = (double)rand()/RAND_MAX * right1 + (right2 - right1);
 		child.push_back(l);
@@ -154,11 +158,11 @@ vector<double> recombine(vector<vector<double>> population, example examples)
 vector<double> evo_alg(example examples)
 {
 	int i = 0;
-	int n = 50;
+	int n = 10;
 	vector<vector<double>> old_population;
 	init(old_population, examples, n);
 	vector<vector<double>> new_population;
-	while (i < 100)
+	while (i < 50)
 	{
 		i++;
 		new_population.push_back(best(old_population, examples));
@@ -166,23 +170,28 @@ vector<double> evo_alg(example examples)
 		{
 			new_population.push_back(select(old_population, examples));
 		}
-		for (int j = old_population.size()/2 + 1; j < old_population.size(); j++)
+		for (int j = old_population.size()/2; j < old_population.size(); j++)
 		{
 			new_population.push_back(recombine(old_population, examples));
 		}
+		old_population.clear();
+		old_population = new_population;
+		new_population.clear();
 	}
-	return best(new_population, examples);
+	return best(old_population, examples);
 }
 
 vector<vector<double>> hider(example examples)
 {
 	vector<vector<double>> rules;
 	int n = examples.size();
+	vector<double> rule;
 	while (examples.size() > n * epf)
 	{
-		vector<double> rule = evo_alg(examples);
+		rule = evo_alg(examples);
 		rules.push_back(rule);
 		examples.extract(rule);
+		rule.clear();
 	}
 	return rules;
 }
@@ -201,9 +210,11 @@ void output(vector<vector<double>> rules)
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	example examples("examples.txt", "bounds.txt");
+	example examples("poland.txt", "bounds.txt");
 	vector<vector<double>> rules = hider(examples);
 	output(rules);
+	int n;
+	cin>>n;
 	return 0;
 }
 
