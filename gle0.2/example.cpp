@@ -97,6 +97,7 @@ example::example(string filename1, string filename2)
 		}
 		_examples.push_back(values);
 		values.clear();
+		input.str("");
 	}
 	fin.close();
 	fin.open(filename2);

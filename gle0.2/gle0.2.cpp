@@ -69,8 +69,12 @@ void init(vector<vector<double>> &population, example examples, int n)
 		{
 			double k1 = (double)rand()/RAND_MAX * ((double)examples.size()/examples.get_classes());
 			double k2 = (double)rand()/RAND_MAX * ((double)examples.size()/examples.get_classes());
+			double value = examples[choice][j];
+			double up = examples.get_up(j);
+			double low = examples.get_low(j);
+			int classes = examples.get_classes();
 			population[i].push_back(examples[choice][j] - (examples.get_up(j) - examples.get_low(j))/examples.size() * k1);
-			population[i].push_back(examples[choice][j] + (examples.get_up(j) - examples.get_low(j))/examples.size() * k1);
+			population[i].push_back(examples[choice][j] + (examples.get_up(j) - examples.get_low(j))/examples.size() * k2);
 		}
 	}
 
@@ -142,8 +146,8 @@ vector<double> crossover(vector<double> parent1, vector<double> parent2)
 		double left2 = max(parent1[i], parent2[i]);
 		double right1 = min(parent1[i + 1], parent2[i + 1]);
 		double right2 = max(parent1[i + 1], parent2[i + 1]);
-		double l = (double)rand()/RAND_MAX * left1 + (left2 - left1);
-		double r = (double)rand()/RAND_MAX * right1 + (right2 - right1);
+		double l = left1 + (double)rand()/RAND_MAX * (left2 - left1);
+		double r = right1 + (double)rand()/RAND_MAX * (right2 - right1);
 		child.push_back(l);
 		child.push_back(r);
 	}
@@ -162,7 +166,7 @@ vector<double> evo_alg(example examples)
 	vector<vector<double>> old_population;
 	init(old_population, examples, n);
 	vector<vector<double>> new_population;
-	while (i < 50)
+	while (i < 20)
 	{
 		i++;
 		new_population.push_back(best(old_population, examples));
@@ -181,30 +185,54 @@ vector<double> evo_alg(example examples)
 	return best(old_population, examples);
 }
 
+void output(vector<double> rule, string filename)
+{
+	ofstream fout;
+	ostringstream fstream;	
+	for (int i = 0; i < rule.size(); i++)
+	{
+		fstream<<rule[i]<<" ";
+		fstream<<endl;
+		fout.open(filename, ios_base::app);
+		fout<<fstream.str();
+		fout.close();
+		fstream.str("");
+	}
+}
+
 vector<vector<double>> hider(example examples)
 {
 	vector<vector<double>> rules;
 	int n = examples.size();
+	int i = 0;
 	vector<double> rule;
 	while (examples.size() > n * epf)
 	{
 		rule = evo_alg(examples);
+		output(rule, "output.txt");
 		rules.push_back(rule);
 		examples.extract(rule);
 		rule.clear();
+		i++;
 	}
 	return rules;
 }
 
-void output(vector<vector<double>> rules)
+void output(vector<vector<double>> rules, string filename)
 {
+	ofstream fout;
+	ostringstream fstream;	
 	for (int i = 0; i < rules.size(); i++)
 	{
 		for (int j = 0; j < rules[i].size(); j++)
 		{
-			cout<<rules[i][j]<<" ";
+			fstream<<rules[i][j]<<" ";
 		}
-		cout<<endl;
+		fstream<<endl;
+		fout.open(filename, ios_base::app);
+		fout<<fstream.str();
+		fout.close();
+		fstream.str("");
 	}
 }
 
@@ -212,7 +240,7 @@ int _tmain(int argc, _TCHAR* argv[])
 {
 	example examples("poland.txt", "bounds.txt");
 	vector<vector<double>> rules = hider(examples);
-	output(rules);
+//	output(rules, "output.txt");
 	int n;
 	cin>>n;
 	return 0;
