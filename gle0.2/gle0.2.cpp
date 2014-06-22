@@ -7,6 +7,22 @@ using namespace std;
 
 const double epf = 0.05;
 
+void correct_error(vector<double> rule, example examples, int &correct, int &error)
+{
+	correct = 0;
+	error = 0;
+	for (int i = 0; i < examples.size(); i++)
+	{
+		bool _correct = false;
+		bool _error = false;
+		check_error(_correct, _error, rule, examples[i]);
+		if (_correct)
+			correct++;
+		if (_error)
+			error++;
+	}
+}
+
 int class_error(vector<double> rule, example examples)
 {
 	int number = 0;
@@ -29,11 +45,10 @@ int correct(vector<double> rule, example examples)
 	return number;
 }
 
-
 double coverage(vector<double> rule, example examples)
 {
 	double cov = 1;
-	for (int i = 0; i < rule.size(); i += 2)
+	for (int i = 0; i < rule.size() - 2; i += 2)
 	{
 		cov *= (rule[i + 1] - rule[i]) / (examples.get_up(i/2) - examples.get_low(i/2));
 	}
@@ -43,10 +58,11 @@ double coverage(vector<double> rule, example examples)
 double fitness(vector<double> rule, example examples)
 {
 	int _examples = examples.size();
-	int error_class = class_error(rule, examples);
-	int correctness = correct(rule,examples);
+	int correct = 0;
+	int error = 0;
+	correct_error(rule, examples, correct, error);
 	double cov = coverage(rule, examples);
-	return (2 * (_examples - error_class) + correctness + cov);//(2 * (examples.size() - class_error(rule, examples)) + correct(rule, examples) + coverage(rule, examples));
+	return (2 * (_examples - error) + correct + cov);//(2 * (examples.size() - class_error(rule, examples)) + correct(rule, examples) + coverage(rule, examples));
 }
 
 vector<double> fitness(vector<vector<double>> population, example examples)
@@ -61,10 +77,10 @@ vector<double> fitness(vector<vector<double>> population, example examples)
 
 void init(vector<vector<double>> &population, example examples, int n)
 {
-	int choice = rand() % examples.size();
 	population.resize(n);
 	for (int i = 0; i < n; i++)
 	{
+		int choice = rand() % examples.size();
 		for (int j = 0; j < examples[choice].size(); j++)
 		{
 			double k1 = (double)rand()/RAND_MAX * ((double)examples.size()/examples.get_classes());
@@ -80,13 +96,17 @@ void init(vector<vector<double>> &population, example examples, int n)
 
 }
 
-vector<double> best(vector<vector<double>> population, example examples)
+vector<double> best(vector<double> fitness, vector<vector<double>> population, example examples)
 {
 	vector<double> max = population[0];
+	int ind = 0;
 	for (int i = 1; i < population.size(); i++)
 	{
-		if (fitness(population[i], examples) > fitness(max, examples))
+		if (fitness[i] > fitness[ind])
+		{
 			max = population[i];
+			ind = i;
+		}
 	}
 	return max;
 }
@@ -110,7 +130,7 @@ int select(vector<double> population)
 		distribution.push_back(distribution[i] + probabilities[i]);
 	}
 	double choice = (double)rand()/RAND_MAX;
-	for (int i = 0; i < distribution.size(); i++)
+	for (int i = 0; i < distribution.size() - 1; i++)
 	{
 		if ((distribution[i] <= choice) && (choice < distribution[i+1]))
 			return i;
@@ -118,9 +138,9 @@ int select(vector<double> population)
 	return (population.size() - 1);
 }
 
-vector<double> select(vector<vector<double>> population, example examples)
+vector<double> select(vector<double> fitness, vector<vector<double>> population, example examples)
 {
-	return population[select(fitness(population, examples))];
+	return population[select(fitness)];
 }
 
 double min(double a, double b)
@@ -154,35 +174,73 @@ vector<double> crossover(vector<double> parent1, vector<double> parent2)
 	return child;
 }
 
-vector<double> recombine(vector<vector<double>> population, example examples)
+vector<double> recombine(vector<double> fitness, vector<vector<double>> population, example examples)
 {
-	return crossover(population[select(fitness(population, examples))], population[select(fitness(population, examples))]);
+	return crossover(population[select(fitness)], population[select(fitness)]);
+}
+
+vector<double> mutate(vector<double> rule, double heom)
+{
+	vector<double> new_rule;
+	for (int i = 0; i < rule.size(); i++)
+	{
+		new_rule.push_back(rule[i]);
+		double mut = (double)rand()/RAND_MAX;
+		if (mut > 0.8)
+		{
+			if (i % 2)
+				rule[i] += heom;
+			else
+				rule[i] -= heom;
+		}
+	}
+	return new_rule;
+}
+
+vector<vector<double>> mutate(vector<vector<double>> population, double heom)
+{
+	vector<vector<double>> new_population;
+	for (int i = 0; i < population.size(); i++)
+	{
+		new_population.push_back(population[i]);
+		double mut = (double)rand()/RAND_MAX;
+		if (mut > 0.9)
+			new_population[i] = mutate(new_population[i], heom);
+	}
+	return new_population;
 }
 
 vector<double> evo_alg(example examples)
 {
 	int i = 0;
-	int n = 10;
+	int n = 40;
+	double _heom = heom(examples.get_examples(), examples.get_up(), examples.get_low());
 	vector<vector<double>> old_population;
 	init(old_population, examples, n);
 	vector<vector<double>> new_population;
-	while (i < 20)
+	vector<double> fit;
+	while (i < 150)
 	{
+ 		fit.clear();
+		fit = fitness(old_population, examples);
 		i++;
-		new_population.push_back(best(old_population, examples));
+		new_population.push_back(best(fit, old_population, examples));
 		for (int j = 1; j < old_population.size()/2; j++)
 		{
-			new_population.push_back(select(old_population, examples));
+			new_population.push_back(select(fit, old_population, examples));
 		}
 		for (int j = old_population.size()/2; j < old_population.size(); j++)
 		{
-			new_population.push_back(recombine(old_population, examples));
+			new_population.push_back(recombine(fit, old_population, examples));
 		}
+		new_population = mutate(new_population, _heom);
 		old_population.clear();
 		old_population = new_population;
 		new_population.clear();
 	}
-	return best(old_population, examples);
+	fit.clear();
+	fit = fitness(old_population, examples);
+	return best(fit, old_population, examples);
 }
 
 void output(vector<double> rule, string filename)
@@ -192,12 +250,12 @@ void output(vector<double> rule, string filename)
 	for (int i = 0; i < rule.size(); i++)
 	{
 		fstream<<rule[i]<<" ";
-		fstream<<endl;
-		fout.open(filename, ios_base::app);
-		fout<<fstream.str();
-		fout.close();
-		fstream.str("");
 	}
+	fstream<<endl;
+	fout.open(filename, ios::app);
+	fout<<fstream.str();
+	fout.close();
+	fstream.str("");
 }
 
 vector<vector<double>> hider(example examples)
@@ -236,13 +294,56 @@ void output(vector<vector<double>> rules, string filename)
 	}
 }
 
+double check_rules(string filename, vector<vector<double>> rules)
+{
+	vector<vector<double>> examples;
+	ifstream fin;
+	fin.open(filename);
+	while (!fin.eof())
+	{
+		string line;
+		getline(fin, line);
+		stringstream input(line);
+		vector<double> values;
+		while (!input.eof())
+		{
+			double val;
+			input>>val;
+			values.push_back(val);
+		}
+		examples.push_back(values);
+		values.clear();
+		input.str("");
+	}
+	fin.close();
+	int correct = 0;
+	for (int i = 0; i < examples.size(); i++)
+	{
+		for (int j = 0; j < rules.size(); j++)
+		{
+			if (check(rules[j], examples[i]))
+			{
+				correct++;
+				break;
+			}
+
+		}
+	}
+	return ((double)correct/examples.size());
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
-	example examples("poland.txt", "bounds.txt");
+	example examples("lviv_month_plan_train.txt", "bounds_lviv_month_plan.txt");
+	ofstream fout;
+	fout.open("output.txt");
+	fout.clear();
+	fout.close();
 	vector<vector<double>> rules = hider(examples);
 //	output(rules, "output.txt");
-	int n;
-	cin>>n;
+	double correct = check_rules("lviv_month_plan_control.txt", rules);
+	cout<<correct;
+	cin>>correct;
 	return 0;
 }
 
